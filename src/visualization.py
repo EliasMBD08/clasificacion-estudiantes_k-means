@@ -41,8 +41,9 @@ class Visualizer:
         if cluster_names is None:
             cluster_names = [f'Cluster {i}' for i in unique]
 
-        # Colores personalizados
-        colors = ['#e74c3c', '#f39c12', '#27ae60']
+        # Colores personalizados (ajustar según número de clusters)
+        all_colors = ['#e74c3c', '#f39c12', '#27ae60', '#3498db', '#9b59b6']
+        colors = all_colors[:len(unique)]
 
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
 
@@ -99,8 +100,18 @@ class Visualizer:
         fig, axes = plt.subplots(n_rows, n_cols, figsize=(14, n_rows * 4))
         axes = axes.flatten() if n_features > 1 else [axes]
 
-        colors = ['#e74c3c', '#f39c12', '#27ae60']
-        cluster_names = ['Riesgo Alto', 'Rendimiento Medio', 'Alto Rendimiento']
+        # Detectar número de clusters automáticamente
+        n_clusters = df[cluster_col].nunique()
+        all_colors = ['#e74c3c', '#f39c12', '#27ae60', '#3498db', '#9b59b6']
+        colors = all_colors[:n_clusters]
+
+        # Asignar nombres según número de clusters
+        if n_clusters == 2:
+            cluster_names = ['Bajo Rendimiento', 'Alto Rendimiento']
+        elif n_clusters == 3:
+            cluster_names = ['Riesgo Alto', 'Rendimiento Medio', 'Alto Rendimiento']
+        else:
+            cluster_names = [f'Cluster {i}' for i in range(n_clusters)]
 
         for idx, feature in enumerate(features):
             ax = axes[idx]
@@ -111,7 +122,7 @@ class Visualizer:
 
             x_pos = np.arange(len(cluster_means))
             bars = ax.bar(x_pos, cluster_means, yerr=cluster_stds, capsize=5,
-                         color=colors, alpha=0.8, edgecolor='black')
+                         color=colors[:len(cluster_means)], alpha=0.8, edgecolor='black')
 
             ax.set_xlabel('Segmento', fontsize=11)
             ax.set_ylabel(f'{feature}', fontsize=11)

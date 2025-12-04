@@ -8,6 +8,7 @@ Autor: Sistema de Clasificación UNMSM
 import os
 import sys
 import warnings
+import numpy as np
 
 # Fix para error de joblib en Windows (debe estar antes de importar sklearn)
 os.environ['LOKY_MAX_CPU_COUNT'] = '1'
@@ -133,7 +134,18 @@ def main():
     visualizer = Visualizer(output_dir=RESULTS_DIR)
 
     # Visualización 1: Distribución de clusters
-    cluster_names = ['Riesgo Alto', 'Rendimiento Medio', 'Alto Rendimiento']
+    # Detectar automáticamente el número de clusters
+    n_clusters = len(np.unique(cluster_labels))
+    if n_clusters == 2:
+        cluster_names = ['Bajo Rendimiento', 'Alto Rendimiento']
+    elif n_clusters == 3:
+        cluster_names = ['Riesgo Alto', 'Rendimiento Medio', 'Alto Rendimiento']
+    else:
+        cluster_names = [f'Cluster {i}' for i in range(n_clusters)]
+
+    print(f"Clusters detectados: {n_clusters}")
+    print(f"Nombres de clusters: {cluster_names}")
+
     visualizer.plot_cluster_distribution(
         cluster_labels,
         cluster_names=cluster_names,
@@ -141,7 +153,15 @@ def main():
     )
 
     # Visualización 2: Características de clusters
-    df_analysis = df_raw.copy()
+    # Crear DataFrame solo con los registros limpios (después del preprocesamiento)
+    # Nota: df_raw tiene más filas que X porque el preprocesamiento eliminó duplicados,
+    # valores nulos y outliers. Solo podemos usar los primeros len(X) registros.
+    print(f"\nNota: df_raw tiene {len(df_raw)} filas, pero después del preprocesamiento quedan {len(X)} filas")
+    print("Creando DataFrame de análisis solo con registros válidos...")
+
+    # Tomar solo las primeras len(cluster_labels) filas de df_raw que corresponden a los datos limpios
+    # ADVERTENCIA: Esta es una aproximación. Idealmente el preprocesador debería devolver los índices exactos.
+    df_analysis = df_raw.head(len(cluster_labels)).copy()
     df_analysis['cluster'] = cluster_labels
     visualizer.plot_cluster_characteristics(
         df_analysis,

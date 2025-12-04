@@ -4,8 +4,8 @@ Implementa entrenamiento, evaluación y predicción con optimización de hiperpa
 """
 
 import os
-# Fix para error de joblib en Windows
-os.environ['LOKY_MAX_CPU_COUNT'] = '1'
+# Configuración para evitar errores de joblib en Windows
+os.environ['LOKY_MAX_CPU_COUNT'] = '6'  # Limita a 6 núcleos para estabilidad
 
 import numpy as np
 import pandas as pd
@@ -17,6 +17,7 @@ from imblearn.over_sampling import SMOTE
 from typing import Tuple, Dict
 import matplotlib.pyplot as plt
 import seaborn as sns
+from joblib import parallel_backend
 
 
 class SVMClassifier:
@@ -28,8 +29,9 @@ class SVMClassifier:
         self.random_state = random_state
         self.model = None
         self.best_params = None
-        self.class_names = ['Riesgo Alto', 'Rendimiento Medio', 'Alto Rendimiento']
+        self.class_names = None  # Se configurará automáticamente según los datos
         self.metrics = {}
+        self.n_classes = None
 
     def prepare_data(self, X: np.ndarray, y: np.ndarray,
                     test_size: float = 0.15, val_size: float = 0.15,
@@ -65,6 +67,18 @@ class SVMClassifier:
         print(f"  Val:   {len(X_val)} muestras")
         print(f"  Test:  {len(X_test)} muestras")
 
+        # Detectar número de clases y configurar nombres
+        self.n_classes = len(np.unique(y))
+        if self.n_classes == 2:
+            self.class_names = ['Bajo Rendimiento', 'Alto Rendimiento']
+        elif self.n_classes == 3:
+            self.class_names = ['Riesgo Alto', 'Rendimiento Medio', 'Alto Rendimiento']
+        else:
+            self.class_names = [f'Clase {i}' for i in range(self.n_classes)]
+
+        print(f"\nNúmero de clases detectadas: {self.n_classes}")
+        print(f"Nombres de clases: {self.class_names}")
+
         # Distribución de clases antes de SMOTE
         unique, counts = np.unique(y_train, return_counts=True)
         print(f"\nDistribución de clases (train antes de SMOTE):")
@@ -98,24 +112,26 @@ class SVMClassifier:
         """
         print("\nOptimizando hiperparámetros de SVM...")
 
-        # Grid de hiperparámetros
+        # Grid de hiperparámetros (optimizado para búsqueda más rápida)
         param_grid = {
-            'C': [0.1, 1, 10, 100],
-            'gamma': ['scale', 'auto', 0.001, 0.01, 0.1],
+            'C': [1, 10, 100],
+            'gamma': ['scale', 0.001, 0.01],
             'kernel': ['rbf']
         }
 
         # Configurar Grid Search
-        svm = SVC(random_state=self.random_state, probability=True)
+        svm = SVC(random_state=self.random_state, probability=True, cache_size=500)
         cv = StratifiedKFold(n_splits=cv_folds, shuffle=True, random_state=self.random_state)
 
         grid_search = GridSearchCV(
             svm, param_grid, cv=cv, scoring='f1_weighted',
-            n_jobs=1, verbose=1, return_train_score=True
+            n_jobs=6, verbose=2, return_train_score=True
         )
 
-        # Entrenar
-        grid_search.fit(X_train, y_train)
+        # Entrenar usando backend 'threading' para evitar errores en Windows
+        print("Usando backend 'threading' para paralelización en Windows...")
+        with parallel_backend('threading', n_jobs=6):
+            grid_search.fit(X_train, y_train)
 
         self.best_params = grid_search.best_params_
         print(f"\nMejores parámetros encontrados:")
@@ -195,7 +211,12 @@ class SVMClassifier:
 
         # Reporte de clasificación
         print(f"\nReporte de Clasificación:")
-        print(classification_report(y_test, y_pred, target_names=self.class_names,
+        # Obtener las clases únicas presentes en y_test
+        unique_classes = np.unique(y_test)
+        class_names_present = [self.class_names[i] for i in unique_classes]
+        print(classification_report(y_test, y_pred,
+                                   labels=unique_classes,
+                                   target_names=class_names_present,
                                    digits=4))
 
         # Guardar métricas
@@ -262,18 +283,24 @@ class SVMClassifier:
         """
         from sklearn.preprocessing import label_binarize
 
+        # Obtener clases únicas presentes
+        unique_classes = np.unique(y_test)
+        n_classes = len(unique_classes)
+
         # Binarizar etiquetas
-        n_classes = len(np.unique(y_test))
-        y_test_bin = label_binarize(y_test, classes=range(n_classes))
+        y_test_bin = label_binarize(y_test, classes=unique_classes)
+        if n_classes == 2:
+            # Para clasificación binaria, label_binarize devuelve array de una columna
+            y_test_bin = np.hstack([1 - y_test_bin, y_test_bin])
 
         plt.figure(figsize=(10, 8))
 
         # Calcular ROC para cada clase
-        for i in range(n_classes):
+        for i, cls in enumerate(unique_classes):
             fpr, tpr, _ = roc_curve(y_test_bin[:, i], y_proba[:, i])
             auc = roc_auc_score(y_test_bin[:, i], y_proba[:, i])
 
-            plt.plot(fpr, tpr, linewidth=2, label=f'{self.class_names[i]} (AUC={auc:.3f})')
+            plt.plot(fpr, tpr, linewidth=2, label=f'{self.class_names[cls]} (AUC={auc:.3f})')
 
         # Línea diagonal
         plt.plot([0, 1], [0, 1], 'k--', linewidth=1, label='Azar')
