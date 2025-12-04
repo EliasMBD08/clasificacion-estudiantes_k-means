@@ -79,7 +79,6 @@ pip install -r requirements.txt
 Para ejecutar todo el proceso (generación de datos, preprocesamiento, clustering, clasificación y visualizaciones):
 
 ```bash
-cd clasificacion_estudiantes
 python main.py
 ```
 
@@ -205,21 +204,25 @@ X_train, X_val, X_test, ... = classifier.prepare_data(
 
 ## Autor
 
-Sistema desarrollado para la Universidad Nacional Mayor de San Marcos (UNMSM) como parte del miniproyecto de Educational Data Mining.
+Sistema desarrollado por los estudiante MARCOS BERNARDO, Elias Daniel en colaboración con el equipo de trabajo del curso de Minería de Datos:
+- Jean Silva López 
+- Luis Fernando Ruiz Palacios
+- Renzo Luis Campos Vergara
+- Marcos Bernardo Elias
+- George Huayhuas Galvan 
+- Kevin Anderson Gonzalez Cabezas
+
+Los estudiantes pertecen a la Universidad Nacional Mayor de San Marcos (UNMSM) como parte del miniproyecto de Educational Data Mining.
 
 ## Licencia
 
-Este proyecto es de uso académico y de investigación.
+Este proyecto es de código abierto (OperSource) para uso académico y de investigación.
 
 ## Referencias
 
 - Baker, R. S., & Inventado, P. S. (2014). Educational data mining and learning analytics.
 - Romero, C., & Ventura, S. (2020). Educational data mining and learning analytics: An updated review.
 - Martínez-Abad, F., & Chaparro-Peláez, J. (2022). Comparison of machine learning algorithms for predicting student academic success.
-
-## Contacto
-
-Para consultas sobre el proyecto, contactar a la Dirección Académica de la UNMSM.
 
 ---
 
